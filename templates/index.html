@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <title>Speech to Speech Translation</title>
+</head>
+<body>
+    <div class="container">
+        <h1>Language Translation System using LLM</h1>
+
+        <div class="card">
+            <h2>Speaking Task</h2>
+            <label for="sourceLanguage">Source Language:</label>
+            <select id="sourceLanguage" name="source_language">
+                {% for lang_name, lang_code in LANGUAGES.items() %}
+                    <option value="{{ lang_code }}">{{ lang_name }}</option>
+                {% endfor %}
+            </select>
+
+            <label for="targetLanguage">Target Language:</label>
+            <select id="targetLanguage" name="target_language">
+                {% for lang_name, lang_code in LANGUAGES.items() %}
+                    <option value="{{ lang_code }}">{{ lang_name }}</option>
+                {% endfor %}
+            </select>
+
+            <button onclick="startListening()">Start Listening</button>
+            <button onclick="stopListening()">Stop Listening</button>
+        </div>
+
+        <div class="card">
+            <h2>Writing Task</h2>
+            <textarea id="manualInput" rows="4" cols="50" placeholder="Type your text here..."></textarea>
+            <button onclick="convertText()">Convert Text</button>
+        </div>
+
+        <div>
+            <h2>Translated Text:</h2>
+            <p id="translatedText">{{ translated_text }}</p>
+        </div>
+    </div>
+
+    <script>
+        let recognition;
+
+        function startListening() {
+            const sourceLang = document.getElementById('sourceLanguage').value;
+            recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+            
+            recognition.lang = sourceLang;
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
+
+            recognition.start();
+
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                document.getElementById('manualInput').value = transcript; // Fill the textarea with the recognized text
+                console.log('Recognized text:', transcript);
+                convertText(); // Automatically convert the recognized text
+            };
+
+            recognition.onerror = (event) => {
+                console.error('Speech recognition error:', event.error);
+            };
+
+            recognition.onend = () => {
+                console.log('Speech recognition service has stopped.');
+            };
+        }
+
+        function stopListening() {
+            if (recognition) {
+                recognition.stop();
+            }
+        }
+
+        function convertText() {
+    const text = document.getElementById('manualInput').value;
+    const sourceLang = document.getElementById('sourceLanguage').value;
+    const targetLang = document.getElementById('targetLanguage').value;
+
+    console.log('Text:', text);
+    console.log('Source Language:', sourceLang);
+    console.log('Target Language:', targetLang);
+
+    fetch('/convert', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ text: text, src_lang: sourceLang, tgt_lang: targetLang }),
+    })
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById('translatedText').innerText = data.translated_text;
+
+        // Play the new audio file
+        const audio = new Audio('/static/' + data.audio_path);
+        audio.play();
+    })
+    .catch(error => console.error('Error:', error));
+}
+    </script>
+</body>
+</html>
